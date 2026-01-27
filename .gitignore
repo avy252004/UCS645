@@ -1,0 +1,13 @@
+# Windows NTFS junk
+*:Zone.Identifier
+
+# Common build files
+*.out
+*.exe
+*.o
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+
