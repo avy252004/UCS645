@@ -1,40 +1,48 @@
-#include <chrono>
 #include <iostream>
-#include <ratio>
+#include <chrono>
+#include <omp.h>
+#include <vector>
+
 using namespace std;
 
-int main(){
-        int num_steps{static_cast<int>(1e9)};
-        double pi{};
-        double sum{0.0};
-        double step{1.0/num_steps};
+int main() {
+    const long long num_steps = 1e9;
+    const double step = 1.0 / num_steps;
 
-        cout<<"With No Threading \n";
-        auto start_time{chrono::steady_clock::now()};
-        for(int i = 0;i<num_steps;++i){
-                double x = (i+0.5)*step;
-                sum += 4.0/(1.0+x*x);
-        }
-        pi = step*sum;
-        auto end_time{std::chrono::steady_clock::now()};
-        auto exec_time{end_time-start_time};
-        chrono::duration<double, std::milli> ms{exec_time};
-        cout<<"Execution Time:"<<ms.count()<<'\n';
-        cout<<"Pi (Serial):"<<pi<<'\n';
+    int max_threads = omp_get_max_threads();
 
-        sum = 0.0;
-        cout<<"With Threading \n";
-        start_time = chrono::steady_clock::now();
-        #pragma omp parallel for reduction(+:sum)
-        for(int i = 0;i<num_steps;++i){
-                double x = (i+0.5)*step;
-                sum += 4.0/(1.0+x*x);
+    cout << "Max available threads: " << max_threads << "\n\n";
+    cout << "Threads\tTime(ms)\tSpeedup\n";
+
+    double serial_time = 0.0;
+
+    for (int threads = 1; threads <= max_threads; threads *= 2) {
+        omp_set_num_threads(threads);
+
+        double sum = 0.0;
+        auto start = chrono::steady_clock::now();
+
+        #pragma omp parallel for reduction(+:sum) schedule(static)
+        for (long long i = 0; i < num_steps; ++i) {
+            double x = (i + 0.5) * step;
+            sum += 4.0 / (1.0 + x * x);
         }
-        pi = step*sum;
-        end_time = chrono::steady_clock::now();
-        exec_time = end_time-start_time;
-        ms = exec_time;
-        cout<<"Execution Time:"<<ms.count()<<'\n';
-        cout<<"Pi (Parallel):"<<pi<<'\n';
-        return 0;
+
+        double pi = step * sum;
+
+        auto end = chrono::steady_clock::now();
+        chrono::duration<double, milli> elapsed = end - start;
+
+        if (threads == 1) {
+            serial_time = elapsed.count();
+        }
+
+        double speedup = serial_time / elapsed.count();
+
+        cout << threads << "\t"
+             << elapsed.count() << "\t"
+             << speedup << "\n";
+    }
+
+    return 0;
 }
